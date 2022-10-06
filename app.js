@@ -7,7 +7,11 @@ const app = express();
 
 // Conexion a Mongo DB
 const mongoose = require('mongoose');
-const uri = 'mongodb://localhost:27017/udemy';
+// const uri = 'mongodb://localhost:27017/udemy';
+
+// Conexion en la nube
+const uri = 'mongodb+srv://user_udemy:<aEJz040CeIvTFp7W>@udemy.xygasky.mongodb.net/?retryWrites=true&w=majority';
+
 const options = {
   autoIndex: false,
   maxPoolSize: 10,
@@ -32,7 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 //   res.send('Hello World!');
 // });
 
-// app.use('/api', require('./views/Notas'));
+app.use('/api', require('./src/routes/nota'));
 
 // Middleware para Vue.js router modo history
 const history = require('connect-history-api-fallback');

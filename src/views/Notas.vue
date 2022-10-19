@@ -3,60 +3,28 @@
     <h1>Notas</h1>
 
     <!-- Alerta -->
-    <b-alert
-      :show="dismissCountDown"
-      :variant="mensaje.color"
-      @dismissed="dismissCountDown = 0"
-      @dismiss-count-down="countDownChanged"
-    >
+    <b-alert :show="dismissCountDown" :variant="mensaje.color" @dismissed="dismissCountDown = 0"
+      @dismiss-count-down="countDownChanged">
       <p>{{ mensaje.texto }}...</p>
-      <b-progress
-        :variant="mensaje.color"
-        :max="dismissSecs"
-        :value="dismissCountDown"
-        height="4px"
-      ></b-progress>
+      <b-progress :variant="mensaje.color" :max="dismissSecs" :value="dismissCountDown" height="4px"></b-progress>
     </b-alert>
 
     <!-- Formulario Editar -->
     <form @submit.prevent="editarNota(notaEditar)" v-if="editar">
       <h3 class="text-center">Agregar nueva Nota</h3>
-      <input
-        type="text"
-        placeholder="Ingrese un Nombre"
-        class="form-control my-2"
-        v-model="notaEditar.nombre"
-      />
-      <input
-        type="text"
-        placeholder="Ingrese una descripcion"
-        class="form-control my-2"
-        v-model="notaEditar.descripcion"
-      />
-      <b-button class="btn-sm btn-block btn-warning" type="submit"
-        >Editar</b-button
-      >
+      <input type="text" placeholder="Ingrese un Nombre" class="form-control my-2" v-model="notaEditar.nombre" />
+      <input type="text" placeholder="Ingrese una descripcion" class="form-control my-2"
+        v-model="notaEditar.descripcion" />
+      <b-button class="btn-sm btn-block btn-warning" type="submit">Editar</b-button>
       <b-button class="btn-sm mx-2" @click="editar = false">Cancelar</b-button>
     </form>
 
     <!-- Formulario Agregar -->
     <form @submit.prevent="agregarNota(nota)" v-if="!editar">
       <h3 class="text-center">Agregar nueva Nota</h3>
-      <input
-        type="text"
-        placeholder="Ingrese un Nombre"
-        class="form-control my-2"
-        v-model="nota.nombre"
-      />
-      <input
-        type="text"
-        placeholder="Ingrese una descripcion"
-        class="form-control my-2"
-        v-model="nota.descripcion"
-      />
-      <b-button class="btn-sm btn-block btn-success" type="submit"
-        >Agregar</b-button
-      >
+      <input type="text" placeholder="Ingrese un Nombre" class="form-control my-2" v-model="nota.nombre" />
+      <input type="text" placeholder="Ingrese una descripcion" class="form-control my-2" v-model="nota.descripcion" />
+      <b-button class="btn-sm btn-block btn-success" type="submit">Agregar</b-button>
     </form>
 
     <!-- Tabla -->
@@ -75,27 +43,35 @@
           <td>{{ item.nombre }}</td>
           <td>{{ item.descripcion }}</td>
           <td>
-            <b-button
-              class="btn-warning btn-sm mx-2"
-              @click="activarEdicion(item._id)"
-              >Actualizar</b-button
-            >
-            <b-button
-              class="btn-danger btn-sm mx-2"
-              @click="eliminarNota(item._id)"
-              >Eliminar</b-button
-            >
+            <b-button class="btn-warning btn-sm mx-2" @click="activarEdicion(item._id)">Actualizar</b-button>
+            <b-button class="btn-danger btn-sm mx-2" @click="eliminarNota(item._id)">Eliminar</b-button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <div>
+      <h6>{{paginaActual}}</h6>
+      <div>
+        <router-link :to="{query: {pagina: paginaActual}}" >
+          <b-pagination v-model="paginaActual" :total-rows="totalNotas" 
+            :per-page="limite" aria-controls="my-table">
+          </b-pagination>
+        </router-link>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import { mapState } from "vuex"
+
 export default {
   data() {
     return {
+      totalNotas: 0,
+      limite: 5,
+      paginaActual: 1,
       notas: [],
       nota: { nombre: "", descripcion: "" },
       notaEditar: { nombre: "", descripcion: "" },
@@ -105,21 +81,64 @@ export default {
       dismissCountDown: 0,
     };
   },
+  computed: {
+    ...mapState(['token']),
+    // cantidadPaginas() {
+    //   console.log(Math.ceil(this.totalNotas / this.limite))
+    //   return Math.ceil(this.totalNotas / this.limite)
+    // },
+  },
   created() {
     this.listarNotas();
   },
+  watch: {
+    "$route.query.pagina": {
+      immediate: true,
+      handler(pagina) {
+        pagina = parseInt(pagina) || 1;
+        this.paginacion(pagina);
+        this.paginaActual = pagina;
+      }
+    }
+  },
   methods: {
+    paginacion(pagina) {
+      let config = {
+        headers: {
+          token: this.token
+        }
+      }
+
+      let skip = (pagina - 1) * this.limite;
+
+      this.axios.get(`/nota?limite=${this.limite}&skip=${skip}`, config)
+        .then(res => {
+          this.notas = res.data.notaDb
+        })
+        .catch(err => {
+          console.log(err.response);
+        })
+
+    },
     alerta() {
       this.mensaje.color = "success";
       this.mensaje.texto = "Probando alerta";
       this.showAlert();
     },
     listarNotas() {
+      let config = {
+        headers: {
+          token: this.token
+        }
+      }
+
       this.axios
-        .get("/nota")
+        .get("/nota", config)
         .then((res) => {
-          // console.log(res.data);
-          this.notas = res.data;
+          this.notas = res.data.notaDb;
+          this.totalNotas = res.data.totalNotas;
+          console.log(this.totalNotas);
+          console.log(this.notas);
         })
         .catch((e) => console.log(e.response));
     },
@@ -130,8 +149,14 @@ export default {
       this.dismissCountDown = this.dismissSecs;
     },
     agregarNota(item) {
+      let config = {
+        headers: {
+          token: this.token
+        }
+      }
+
       this.axios
-        .post("nueva-nota", item)
+        .post("/nueva-nota", this.nota, config)
         .then((res) => {
           // Agrega al inicio de nuestro array notas
           this.notas.unshift(res.data);
